@@ -112,6 +112,7 @@ const f1Data = [
   "https://en.wikipedia.org/wiki/Formula_One",
   "https://www.skysports.com/f1/news/12433/13294444/lewis-hamilton-ferrari-f1-driver-energised-after-first-test-for-new-team-at-fiorano-ahead-of-2025-formula-1-season",
   "https://www.forbes.com/sites/brettknight/2024/12/10/formula-1s-highest-paid-drivers-2024/",
+  "https://www.formula1.com/en/latest/article/new-team-mates-hamilton-and-leclerc-combine-to-reveal-ferraris-2025-race.2bM6IKQ9m534dW25fRlHXM",
   "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Drivers%27_Champions",
   "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Drivers%27_Champions",
   "https://www.formula1.com/",

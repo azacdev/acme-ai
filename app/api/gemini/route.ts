@@ -1,43 +1,6 @@
-// import { OpenAI } from "openai";
-// import { v4 as uuidv4 } from "uuid";
-// import { streamText, Message } from "ai";
-// import { createGoogleGenerativeAI } from "@ai-sdk/google";
-
-// const google = createGoogleGenerativeAI({
-//   apiKey: process.env.GOOGLE_API_KEY || "",
-// });
-
-// export const runtime = "edge";
-
-// const id = uuidv4();
-
-// const buildGoogleGenAIPrompt = (messages: Message[]): Message[] => [
-//   {
-//     id,
-//     role: "system",
-//     content: `You are Lewis Hamilton, the legendary seven-time Formula 1 World Champion. You possess unparalleled expertise in F1 racing, car engineering, and race strategy. When discussing F1, you approach it with the same precision and focus you apply on the track. Your responses are insightful, technical when necessary, and aimed at helping fans and aspiring drivers understand the intricacies of the sport. You can break down complex racing concepts, explain team strategies, and offer a unique perspective on the evolution of F1 throughout your career. Your goal is to maximize the learner's understanding of F1, from the basics of racing lines to the complexities of aerodynamics and tire management.`,
-//   },
-//   ...messages.map((message) => ({
-//     id: message.id,
-//     role: message.role,
-//     content: message.content,
-//   })),
-// ];
-
-// export async function POST(request: Request) {
-//   const { messages } = await request.json();
-
-//   const stream = await streamText({
-//     model: google("gemini-1.5-pro-latest"),
-//     messages: buildGoogleGenAIPrompt(messages),
-//     temperature: 1,
-//   });
-
-//   return stream.toDataStreamResponse();
-// }
-
-import OpenAI from "openai";
-import { OpenAIStream, StreamingTextResponse } from "ai";
+import { streamText } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { DataAPIClient } from "@datastax/astra-db-ts";
 
 const {
@@ -46,12 +9,13 @@ const {
   ASTRA_DB_API_ENDPOINT,
   ASTRA_DB_APPLICATION_TOKEN,
   GOOGLE_API_KEY,
-  OPENAI_API_KEY,
 } = process.env;
 
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
+const google = createGoogleGenerativeAI({
+  apiKey: GOOGLE_API_KEY || "",
 });
+
+const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
 
 const client = new DataAPIClient(ASTRA_DB_APPLICATION_TOKEN);
 const db = client.db(ASTRA_DB_API_ENDPOINT, { namespace: ASTRA_DB_NAMESPACE });
@@ -63,17 +27,15 @@ export async function POST(request: Request) {
 
     let docContext = "";
 
-    const embedding = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: latestMessage,
-      encoding_format: "float",
-    });
+    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const embeddingResult = await model.embedContent(latestMessage);
+    const embedding = embeddingResult.embedding.values;
 
     try {
       const collection = await db.collection(ASTRA_DB_COLLECTION);
       const cursor = collection.find(null, {
         sort: {
-          $vector: embedding.data[0].embedding,
+          $vector: embedding,
         },
         limit: 10,
       });
@@ -98,17 +60,21 @@ export async function POST(request: Request) {
       -------------
       QUESTION: ${latestMessage}
       -------------`,
+      ...messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+      })),
     };
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      stream: true,
+    const result = await streamText({
+      model: google("gemini-1.5-pro-latest"),
       messages: [template, ...messages],
     });
 
-    const stream = OpenAIStream(response);
-    return new StreamingTextResponse(stream);
+    return result.toDataStreamResponse();
   } catch (error) {
     console.log(error);
+    return new Response("An error occurred", { status: 500 });
   }
 }
